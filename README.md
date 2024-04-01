@@ -1,4 +1,4 @@
-# Social Media Analysis: Exploring Students' Addiction to Social Media 
+# Social Media Analysis: Exploring Students' Weekly Usage
 
 ## About the Data
 The dataset contains data obtained from students regarding their weekly usage of social media. Subsequently, the data has been consolidated into a single row through averaging.
