@@ -1,0 +1,155 @@
+---
+title: "Linear Discriminant Analysis (LDA) - Social Media Data"
+author: "Ashita Shetty"
+output: html_document
+---
+
+```{r}
+library(MASS)
+library(ggplot2)
+library(memisc)
+library(ROCR)
+library(dplyr)
+library(klaR)
+```
+
+```{r}
+social_media <- read.csv("C:\\Users\\Dell\\Desktop\\RBS\\Semester II\\Multivariate Analysis\\Assignment\\Social_Media\\MVA_Social_Media_Cleaned.csv", row.names = 1)
+
+str(social_media)
+```
+
+```{r}
+social_media_df <-social_media[, c("Instagram_Hours",	"LinkedIn_Hours",	"Snapchat_Hours", "Twitter_Hours",	"Whatsapp_Wechat_hours", "Reddit_hours",	"Youtube_hours",	"OTT_hours", "Tired_Morning")]
+```
+
+```{r}
+social_media_df$Tired_Morning <- ifelse(test=social_media_df$Tired_Morning == 'Yes', yes="Tired", no="Not Tired") 
+social_media_df$Tired_Morning <- as.factor(social_media_df$Tired_Morning)
+
+str(social_media_df)
+
+```
+
+#### **LDA Model with Train and Test Split**
+
+**Splitting the dataset into Training and Test** 
+*(For this project, we have kept the training and test set constant)*
+
+```{r}
+set.seed(42)
+
+smp_size_raw <- floor(0.75 * nrow(social_media_df))
+
+train_ind_raw <- sample(nrow(social_media_df), size = smp_size_raw)
+
+#Creating Train and Test Data
+train_raw.df <- as.data.frame(social_media_df[train_ind_raw, ])
+test_raw.df <- as.data.frame(social_media_df[-train_ind_raw, ])
+```
+
+
+**LDA MODEL**
+
+```{r}
+sm_lda <- lda(formula = train_raw.df$Tired_Morning ~ ., data = train_raw.df)
+sm_lda
+```
+
+**Inferences:**
+
+* The prior probabilities highlights the imbalance in the dataset as "Not Tired" has a higher probability (0.67) compared to "Tired" (0.33).
+* The Group Means are a great way to interpret the social media applications with their effects on each class. 
+* For instance, Observations in the "Not Tired" group tend to have higher values for Instagram hours, LinkedIn hours, Reddit hours, Snapchat hours, Twitter hours,and OTT hours compared to the "Tired" group. Conversely, the "Tired" group has higher values for Whatsapp/Wechat hours.
+* Observations with higher LD1 values are more likely to be classified as "Not Tired," while those with lower LD1 values are more likely to be classified as "Tired." ('-ve values are Tired and +ve values are Not-Tired)
+
+
+```{r}
+summary(sm_lda)
+```
+
+**Inference:**
+
+* The above summary helps us examine the output of our LDA model. 
+
+
+#### **Residuals**
+
+```{r}
+plot(sm_lda)
+```
+
+**Inference:**
+
+* The smaller differences in probabilities indicate that the LDA model may not be as great at distinguishing groups
+
+```{r}
+plot(sm_lda, col = as.integer(train_raw.df$Tired_Morning))
+```
+
+```{r}
+partimat(Tired_Morning ~ Instagram_Hours + LinkedIn_Hours + Snapchat_Hours + Twitter_Hours + Whatsapp_Wechat_hours+ Reddit_hours+ Youtube_hours , data = train_raw.df, method = "lda")
+
+```
+
+**Inferences:**
+
+* The Partitioning Around Medoids (PAM) is a great way to visualize and examine how well our model is able to separate different classes.
+* It assists by identifying any clear clusters. 
+* However, in our case, it can be easily observed how the model is unable to make any clear separation except in a few cases.
+
+#### **Prediction**
+
+```{r}
+sm.lda.predict <- predict(sm_lda, newdata = test_raw.df)
+sm.lda.predict$class
+```
+
+```{r}
+sm.lda.predict$x
+```
+
+**Inference:**
+
+* Higher positive LD1 scores indicate a higher probability of belonging to one group ("Tired"), while lower or negative scores indicate a higher probability of belonging to the other group (e.g., "Not Tired").
+
+
+#### **Model Accuracy**
+
+```{r}
+# Get the posteriors as a dataframe.
+sm.lda.predict.posteriors <- as.data.frame(sm.lda.predict$posterior)
+
+pred <- prediction(sm.lda.predict.posteriors[,2], test_raw.df$Tired_Morning)
+roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
+auc.train <- performance(pred, measure = "auc")
+auc.train <- auc.train@y.values
+
+plot(roc.perf)+abline(a=0, b= 1)+text(x = .25, y = .65 ,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
+
+```
+
+**Inference:**
+
+* An Area Under the ROC Curve (AUC) value of 0.5 suggests that the model has a poor ability to distinguish between the positive and negative classes
+
+```{r}
+# Predict class labels for the test dataset
+predicted_labels <- predict(sm_lda, newdata = test_raw.df)$class
+
+# Calculate accuracy
+actual_labels <- test_raw.df$Tired_Morning
+accuracy <- mean(predicted_labels == actual_labels)
+
+cat("Accuracy:", accuracy, "\n")
+```
+
+**Inference:**
+
+* Our LDA model has an accuracy of 0.5 which showcases that it may not be an ideal model. However, as established initially, it can be attributed to the imbalanced dataset that we have.
+
+
+#### **Model Summary**
+
+* As the model has an imbalanced dataset with majority data points under "Not Tired", it may be difficult for the model to clearly distinguish between the two classes, which was also observed in the PAM diagram.
+* Therefore, the AUC and the Accuracy of the model is also less (0.5).
