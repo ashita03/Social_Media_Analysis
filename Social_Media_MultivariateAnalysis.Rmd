@@ -1,0 +1,532 @@
+---
+title: "Social Media Analysis"
+author: "Ashita Shetty"
+output: html_document
+---
+
+##### Loading the Packages
+
+```{r}
+library(readr)
+library(corpcor)
+library(Hotelling)
+library(lattice)
+library(ggplot2)
+library(ggridges)
+library(ggvis)
+library(ggthemes)
+library(cowplot)
+library(gapminder)
+library(gganimate)
+library(dplyr)
+library(tidyverse)
+library(grid)
+library(gridExtra)
+library(RColorBrewer)
+
+library(cluster)
+library(readr)
+library(factoextra)
+library(FactoMineR)
+library(magrittr)
+library(NbClust)
+library(psych)
+options(scipen=999)
+
+library(caret)
+library(e1071)
+library(pROC)
+
+library(MASS)
+library(memisc)
+library(ROCR)
+library(dplyr)
+library(klaR)
+```
+
+##### Dataset Loading
+
+```{r}
+social_media <- read.csv("C:\\Users\\Dell\\Desktop\\RBS\\Semester II\\Multivariate Analysis\\Assignment\\Social_Media\\MVA_Social_Media_Cleaned.csv", row.names = 1)
+
+social_media_num <- social_media[, c("Instagram_Hours",	"LinkedIn_Hours",	"Snapchat_Hours", "Twitter_Hours",	"Whatsapp_Wechat_hours", "Reddit_hours",	"Youtube_hours",	"OTT_hours")]
+
+```
+
+```{r}
+str(social_media)
+```
+
+
+##### Converting 'chr' columns into factors
+
+```{r}
+social_media$Trouble_Sleeping_num <- ifelse(test=social_media$Trouble_Sleeping == 'Yes', 1, 0) 
+social_media$Tired_Morning_num <- ifelse(test=social_media$Tired_Morning == 'Yes', 1, 0) 
+social_media$Mood_Productivity_num <- ifelse(test=social_media$Mood_Productivity == 'Yes', 1, 0) 
+
+```
+
+
+```{r}
+social_media$Trouble_Sleeping <- ifelse(test=social_media$Trouble_Sleeping == 'Yes', yes="Troubled", no="Not Troubled") 
+social_media$Trouble_Sleeping <- as.factor(social_media$Trouble_Sleeping)
+
+social_media$Tired_Morning <- ifelse(test=social_media$Tired_Morning == 'Yes', yes="Tired", no="Not Tired") 
+social_media$Tired_Morning <- as.factor(social_media$Tired_Morning)
+
+social_media$Mood_Productivity <- ifelse(test=social_media$Mood_Productivity == 'Yes', yes="Productive", no="Not Productive") 
+social_media$Mood_Productivity <- as.factor(social_media$Mood_Productivity)
+
+#For Cluster Analysis
+matstd_socialmedia <- scale(social_media_num)
+
+```
+
+#### **Exploratory Data Analysis (EDA)**
+
+```{r}
+stars(social_media_num)
+```
+
+**Inferences:**
+
+* Stars diagram is a great way to observe students with similar application usage. While not everybody has the exact same pattern, similar students can be spotted based on the applications used or average time of use.
+* For example, 19!@s, MVA37@S, yh2020, Bunny, 15801 are students that have used similar apps, however the average consumption differed. While MVA37@S is not an extensive social media user, 15801 seems to have been using social media quite a lot.
+
+```{r}
+ggplot(social_media, aes(x = Trouble_Sleeping, fill = Trouble_Sleeping)) +
+  geom_bar() +
+  labs(title = "Distribution of students having trouble falling asleep",
+       x = "Status",
+       y = "Count") + 
+  scale_fill_manual(values = c("Not Troubled" = "steelblue", "Troubled" = "red"))+
+  theme_fivethirtyeight()
+```
+
+**Inferences:**
+
+* An analysis of the number of students have trouble sleeping vs not having any trouble.
+* This a great way of understanding an imbalance in the dataset.
+
+```{r}
+correlation_matrix <- cor(social_media[, c("Instagram_Hours", "LinkedIn_Hours", "Snapchat_Hours", "Twitter_Hours", "Whatsapp_Wechat_hours", "Reddit_hours", "Youtube_hours", "OTT_hours", "Trouble_Sleeping_num", "Tired_Morning_num", "Mood_Productivity_num")])
+
+# Create a heatmap
+library(reshape2)
+
+# Convert correlation matrix to long format
+correlation_df <- melt(correlation_matrix)
+
+ggplot(correlation_df, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Correlation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, size = 10, hjust = 1)) +
+  coord_fixed()
+
+```
+
+**Inferences:**
+
+* As it may be observed that Snapchat, and Instagram are highly correlated to having trouble falling asleep.
+* For Tired_Morning, most applications are negatively correlated.
+* Whereas applications such as WhatsApp/WeChat, LinkedIn, Instagram, Snapchat, and OTT have a correlation to the Mood Productivity of the students.
+
+
+```{r}
+ggplot(social_media, aes(Entire_Week_Feeling)) + facet_grid(.~Trouble_Sleeping) + 
+  geom_bar(fill="blue", position="stack", width = 0.8) + coord_flip()+ theme_fivethirtyeight()
+```
+
+**Inference:**
+
+* An analysis of the average week feeling for every class of sleeping issues.
+
+
+#### **Let's carry out Principal Component Analysis to see the different applications and how much variability they bring**
+
+```{r}
+social_media_pca <- prcomp(social_media_num, scale. = TRUE)
+summary(social_media_pca)
+```
+
+**Inferences:**
+
+* The summary provides a clear understanding of the cumulative variance that the ideal no. of PCs will have.
+
+##### Scree Plot
+
+* To further understand the ideal number of PCs, we can carry out the Scree Plot
+
+```{r}
+(eigen_social_media <- social_media_pca$sdev^2)
+names(eigen_social_media) <- paste("PC",1:8,sep="")
+
+plot(eigen_social_media, xlab = "Component number", ylab = "Component variance", type = "l", main = "Scree diagram")
+```
+
+**Inference:**
+
+* As the elbow is formed at the **Component Number 3**, it would be the ideal number of PCs to be used.
+
+##### PCA - BiPlot
+
+```{r}
+res.pca <- PCA(social_media_num, graph = FALSE)
+fviz_pca_biplot(res.pca, repel = TRUE,
+                col.var = "#FC4E07", # Variables color
+                )
+```
+
+**Inferences:**
+
+* The Bi-plot helps to understand to clearly see the penetration of the applications among students.
+* The ranking of applications based on the usage (high to low): WhatsApp/Wechat > Twitter > OTT platforms > Instagram > Snapchat > LinkedIn > Youtube > Reddit.
+* Student "15801" in general spends more time on social media, especially Snapchat. Whereas Student "masinl" spends most of his/her time on Twitter and OTT.
+* The club of students in the left have been grouped together due to their similar activities of social media usage. These students are not as extensive users as the ones to the right highlight modularity.
+
+
+#### **Cluster Analysis - Grouping of Students based on the similarity of characteristics**
+
+**Identifying ideal number of clusters**
+
+```{r}
+fviz_nbclust(matstd_socialmedia, kmeans, method = "wss")
+```
+
+**Inference:**
+
+* It can be observed that **4 may be the ideal number of clusters**
+
+##### Dendogram - To visualize the different possible clusters
+
+```{r}
+dist.sm <- dist(matstd_socialmedia, method = "euclidean")
+clussm.nn <- hclust(dist.sm, method = "single")
+```
+
+```{r}
+plot(as.dendrogram(clussm.nn),xlab="Students",ylab="Distance between diffferent students",ylim=c(0,10),
+     main="Dendrogram Plot")
+```
+
+**Inference:**
+
+* A Dendogram is a great way to see the groups that can be formed at the base level on similarity. Shorter height is indicative of higher similarity.
+* For instance, "Bunny" and "trave" seem to be grouped together. The two combined can form another cluster with "hahah".
+
+##### Membership of all clusters
+
+```{r}
+set.seed(123)
+kmeans4.sm <- kmeans(matstd_socialmedia, 4, nstart = 25)
+
+kmeans4.sm
+```
+
+**Inferences:**
+
+* Cluster 1: This cluster tends to have higher values for features like "Reddit_Hours", "Twitter_Hours", and "OTT_hours" compared to other clusters. It suggests that data points in this cluster are associated with higher usage of Reddit, Twitter, and OTT platforms.
+* Cluster 2: This cluster shows significant values for features like Instagram, WhatsApp/WeChat, SnapChat and YouTube.
+* Cluster 3: Conversely, this cluster has lower values for most features compared to other clusters. It implies that data points in this cluster exhibit lower usage across various social media platforms.
+* Cluster 4: This cluster shows low to moderate usage of all the apps.
+
+
+```{r}
+clus1 <- matrix(names(kmeans4.sm$cluster[kmeans4.sm$cluster == 1]), 
+                ncol=1, nrow=length(kmeans4.sm$cluster[kmeans4.sm$cluster == 1]))
+colnames(clus1) <- "Cluster 1"
+
+clus2 <- matrix(names(kmeans4.sm$cluster[kmeans4.sm$cluster == 2]), 
+                ncol=1, nrow=length(kmeans4.sm$cluster[kmeans4.sm$cluster == 2]))
+colnames(clus2) <- "Cluster 2"
+
+clus3 <- matrix(names(kmeans4.sm$cluster[kmeans4.sm$cluster == 3]), 
+                ncol=1, nrow=length(kmeans4.sm$cluster[kmeans4.sm$cluster == 3]))
+colnames(clus3) <- "Cluster 3"
+
+clus4 <- matrix(names(kmeans4.sm$cluster[kmeans4.sm$cluster == 4]), 
+                ncol=1, nrow=length(kmeans4.sm$cluster[kmeans4.sm$cluster == 4]))
+colnames(clus4) <- "Cluster 4"
+
+list(clus1,clus2, clus3, clus4)
+```
+
+```{r}
+km.res <- kmeans(matstd_socialmedia, 4, nstart = 25)
+# Visualize
+fviz_cluster(km.res, data = matstd_socialmedia,
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal(),
+             repel = TRUE)
+
+```
+
+**Inference:**
+
+* As you can observe, *masinl* and *15801* are not grouped in any of the clusters highlighting them as outliers.
+* Whereas Cluster 2 and Cluster 3 can be differentiated based on their usage of different applications highlighted above.
+
+
+#### **Factor Analysis - To see the applications that can be grouped together**
+
+```{r}
+fa.parallel(social_media_num) 
+```
+
+**Inference**:
+
+* Following the FA Actual Data, we can interpret as **2 to be the ideal number of factors**.
+
+##### Factor Model
+
+```{r}
+fit.pc <- principal(social_media_num, nfactors=2, rotate="varimax")
+
+round(fit.pc$values, 3)
+fit.pc$loadings
+
+```
+
+**Inference:**
+
+* The loadings give the correlation, and leave out the values that may be way below a threshold making it unimportant.
+* An inference of how heavily correlated *Snapchat_Hours*, *Instagram_Hours* are to *RC1* can be drawn.
+* Similarly, *Twitter_Hours*, and *OTT_Hours* are to *RC2*.
+
+
+```{r}
+fit.pc$communality
+```
+
+**Inference:**
+
+* The column with the lowest communality scores can be referenced to be the least contributing.
+* In this case, it can be observed that *Reddit_Hours* has the least communality score making it the least contributing column.
+
+##### Visualizing the Columns that go into each Factor
+
+```{r}
+fa.diagram(fit.pc)
+```
+
+**Inference:**
+
+* The diagram is clearly representing how *Snapchat_Hours*, *Instagram_Hours* are heavily contributing to *RC1* whereas *LinkedIn_Hours*, *Whatsapp_Wechat_hours*, *Youtube_hours* contribute equally. This is indicative of how these applications are viewed more or less in similar patterns, making them more popular among students.
+* *Twitter_Hours*, *OTT_Hours* are bigger contributors to *RC2*, whereas *Reddit_hours* contribute least. This showcases that Reddit is the least popular application, and Twitter, OTT are popular among a few students.
+
+
+#### **In order to understand where I stand w.r.t to the other students, Z-scores can be calculated**
+
+```{r}
+means <- colMeans(social_media_num)
+std_devs <- apply(social_media_num, 2, sd)
+
+z_scores <- scale(social_media_num, center = means, scale = std_devs)
+
+z_scores[18,]
+```
+
+**Inferences:**
+
+* The Z-scores can help me identify how my **Youtube**, **LinkedIn**, and **Twitter** usage are **way below** my fellow classmates.
+* Whereas **Instagram** is **slightly higher** than the average among my classmates.
+
+
+### **Finding the best model to predict trouble sleeping**
+
+#### **Multiple Regression**
+
+```{r}
+fit <- lm(Trouble_Sleeping_num~Instagram_Hours+LinkedIn_Hours+Snapchat_Hours+Twitter_Hours+Whatsapp_Wechat_hours+Reddit_hours+Youtube_hours+OTT_hours, data=social_media)
+
+summary(fit)
+```
+
+**Inferences:**
+
+* None of the predictor variables (Instagram_Hours, LinkedIn_Hours, etc.) show a statistically significant relationship with the Trouble_Sleeping_num variable, as indicated by their high p-values.
+* The model's adjusted R-squared value of -0.1061 suggests that the model does not explain much of the variance in the Trouble_Sleeping_num variable.
+* None of the social media usage variables significantly predict trouble sleeping, and the overall model is not statistically significant in explaining the variance in trouble sleeping behavior. 
+
+```{r}
+plot(fit)
+```
+
+**Inferences:**
+
+* The plots above are heavily relied upon to verify whether the model's assumptions have been met. They help in identifying significant model issues.
+
+* **1. Residuals Vs Fitted Values Plot:** This plot aims to highlight whether the residuals have constant variance between them. The expected manner would be to be scattered around the horizontal line. However, in our case they seem to be concentrated in a particular manner. Since we can observe a pattern in the diagram, it indicates heteroscedasticity or non-linearity in the model.
+
+* **2. Q-Q Plot:** This plot compares the distribution of the residuals to the normal distribution. Since the points fall along the diagonal they indicate a normal distribution in the residuals.
+
+* **3. Scale-Location Plot:** This plot helps to assess whether the variance of the residuals is constant (homoscedasticity). The spread of the points changing systematically with the fitted values indicates heteroscedasticity.
+
+* **4. Residuals vs. Leverage Plot:** Points having high leverage and large residuals may be highly influential. This plot helps us determines whether these points should be considered.
+
+
+**Since the Multiple Regression model was unable to give a good output, we can try Logistic Regression**
+
+
+#### **Logistic Regression**
+
+```{r}
+logistic_reg <- glm(Trouble_Sleeping ~Instagram_Hours+LinkedIn_Hours+Snapchat_Hours+Twitter_Hours+Whatsapp_Wechat_hours+Reddit_hours+Youtube_hours+OTT_hours, data=social_media, family="binomial")
+
+summary(logistic_reg)
+```
+
+**Inferences:**
+
+* None of the predictor variables (Instagram_Hours, LinkedIn_Hours, etc.) show a statistically significant relationship with the Trouble_Sleeping variable, as indicated by their high p-values.
+* The model's residual deviance of 17.665 on 12 degrees of freedom suggests a decent fit to the data, although there may still be unexplained variability.
+* Similar to the previous model, there is no evidence to support a significant relationship between social media usage variables and trouble sleeping behavior.
+
+##### Predicted Data
+
+```{r}
+predicted.data <- data.frame(probability.of.sleep=logistic_reg$fitted.values,Sleep=social_media$Trouble_Sleeping)
+predicted.data <- predicted.data[order(predicted.data$probability.of.sleep, decreasing=FALSE),]
+predicted.data$rank <- 1:nrow(predicted.data)
+
+predicted.data
+```
+
+**Inference:**
+
+* The dataframe comprises of the probabilities of status, as well as the corresponding STATUS in our data.
+
+
+##### Plotting of predicted probabilities
+
+```{r}
+ggplot(data=predicted.data, aes(x=rank, y=probability.of.sleep)) +
+geom_point(aes(color=Sleep), alpha=1, shape=4, stroke=2) +
+xlab("Index") +
+ylab("Predicted probability of Troubled Sleeping")
+```
+
+**Inferences:**
+
+* There is not much clear distinction between the two classes indicating that the model may not be as great.
+
+```{r}
+pdata <- predict(logistic_reg,newdata=social_media,type="response" )
+pdataF <- as.factor(ifelse(test=as.numeric(pdata>0.5) == 0, yes="Troubled", no="Not Troubled"))
+
+confusionMatrix(pdataF, social_media$Trouble_Sleeping)
+
+```
+
+**Inferences:**
+
+* The model performs poorly with an accuracy of 23.81%.
+* The 95% confidence interval is between 0.0822 and 0.4717 for our logistic regression model.
+* Sensitivity (true positive rates), and Specificity (true negative rates) are 0.14 and 0.428 respectively.
+* Balanced Accuracy provides a balanced measure of model performance by taking into account the imbalance in class distribution, which is calculated by taking the average of Sensitivity and Specificity which 0.286.
+
+#### **Linear Discriminant Analysis**
+
+##### Splitting the data into Train and Test
+
+```{r}
+social_media_df <- social_media[, c("Instagram_Hours",	"LinkedIn_Hours",	"Snapchat_Hours", "Twitter_Hours",	"Whatsapp_Wechat_hours", "Reddit_hours",	"Youtube_hours",	"OTT_hours", "Trouble_Sleeping")]
+```
+
+
+```{r}
+set.seed(42) #Keeping the train/test split consistent in all runs
+
+smp_size_raw <- floor(0.75 * nrow(social_media_df))
+
+train_ind_raw <- sample(nrow(social_media_df), size = smp_size_raw)
+
+#Creating Train and Test Data
+train_raw.df <- as.data.frame(social_media_df[train_ind_raw, ])
+test_raw.df <- as.data.frame(social_media_df[-train_ind_raw, ])
+```
+
+##### Creating the model
+
+```{r}
+sm_lda <- lda(formula = train_raw.df$Trouble_Sleeping ~ ., data = train_raw.df)
+sm_lda
+```
+
+**Inferences:**
+
+* The prior probability of being Troubled is 0.33, indicating that approximately one-third of the observations in the training dataset are labeled as Troubled.
+* The means of the predictor variables for each group (Not Troubled and Troubled) show differences between the two groups. For example, Troubled individuals tend to have higher mean values for "Snapchat_Hours", "Instagram_Hours", "Twitter_Hours", "YouTube_Hours", and "OTT_Hours" compared to Not Troubled individuals.
+* The coefficients of the linear discriminants (LD1) indicate the contribution of each predictor variable to the separation between the two groups. Positive coefficients indicate that higher values of the predictor variable are associated with the Troubled group, while negative coefficients indicate the opposite. 
+* For example, higher values of Snapchat_Hours, Twitter_Hours, Reddit_hours, Whatsapp_Wechat_hours and Youtube_hours contribute to classifying an individual as Troubled, while higher values of Instagram_Hours, LinkedIn_Hours, and OTT_hours contribute to classifying an individual as Not Troubled.
+
+**Since the model seems to be giving better results, let's further evaluate the model's performance**
+
+```{r}
+plot(sm_lda)
+```
+
+**Inference:**
+
+* Lack of much overlap is an indication of a good model
+
+#### Prediction
+
+```{r}
+sm.lda.predict <- predict(sm_lda, newdata = test_raw.df)
+sm.lda.predict$class
+```
+
+```{r}
+sm.lda.predict$x
+```
+
+**Inferences:**
+
+* Based on the LD1 scores above, we can infer that the highly positive values indicate that they belong to the 'Tired' group. For instance, "AKIRA" has a very high LD1 value indicating that based on the social media usage pattern, the student has issues falling asleep.
+* Whereas "Patty" with a negative LD1 does not have issues falling asleep (based on the lower LD1 value).
+
+#### Model Accuracy
+
+```{r}
+# Get the posteriors as a dataframe.
+sm.lda.predict.posteriors <- as.data.frame(sm.lda.predict$posterior)
+
+pred <- prediction(sm.lda.predict.posteriors[,2], test_raw.df$Trouble_Sleeping)
+roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
+auc.train <- performance(pred, measure = "auc")
+auc.train <- auc.train@y.values
+
+plot(roc.perf)+abline(a=0, b= 1)+text(x = .25, y = .65 ,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
+
+```
+
+```{r}
+# Predict class labels for the test dataset
+predicted_labels <- predict(sm_lda, newdata = test_raw.df)$class
+
+# Calculate accuracy
+actual_labels <- test_raw.df$Trouble_Sleeping
+accuracy <- mean(predicted_labels == actual_labels)
+
+cat("Accuracy:", accuracy, "\n")
+```
+
+**Inferences:**
+
+* Based on the AUC and accuracy (0.25 and 0.33 respectively), we can infer that the model has a poor performance in predicting whether the students have trouble falling asleep or not.
+* While the model may not be adept at differentiating groups, it can be attributed to the imbalanced data that we have. (67% - Not Troubled; 33% - Troubled)
+
+
+#### **Summary**
+
+* As it may be observed that Snapchat, and Instagram are highly correlated to having trouble falling asleep.For Tired_Morning, most applications are negatively correlated. Whereas applications such as WhatsApp/WeChat, LinkedIn, Instagram, Snapchat, and OTT have a correlation to the Mood Productivity of the students.
+* **YouTube, WhatsApp/WeChat, Instagram, LinkedIn, Snapchat** are likely to be used in similar patters by the class. It can also be observed these applications are linked to **modes of communication channels, and or entertainment**. **Twitter, OTT, and Reddit** have a separate usage pattern. These applications are linked towards **information consumption, news sharing or niche content**.
+* Majority of the class can be majorly divided into two groups of social media users: *Heavy Consumers*, and *Moderate to Low* (except the outlier usages)
+* **Instagram**, **LinkedIn**, **OTT** are the applications that may have a negative effect on sleep.
+* **Linear Discriminant Analysis (LDA)** may be the ideal model to predict whether a student will have trouble sleeping based on their social media usage.
