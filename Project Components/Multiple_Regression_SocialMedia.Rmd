@@ -1,0 +1,270 @@
+---
+title: "Multiple Regression on Social Media Data"
+author: "Ashita Shetty"
+output: html_document
+---
+
+```{r}
+library(factoextra)
+library(FactoMineR)
+library(psych)
+```
+
+
+### **Predicting the Impact on Mood Productivity based on Social Media Usage**
+
+```{r}
+social_media <- read.csv("C:\\Users\\Dell\\Desktop\\RBS\\Semester II\\Multivariate Analysis\\Assignment\\Social_Media\\MVA_Social_Media_Cleaned.csv", row.names = 1)
+
+social_media_reg <- social_media[, c("Instagram_Hours",	"LinkedIn_Hours",	"Snapchat_Hours", "Twitter_Hours",	"Whatsapp_Wechat_hours", "Reddit_hours",	"Youtube_hours",	"OTT_hours", "Mood_Productivity")]
+```
+
+```{r}
+str(social_media_reg)
+```
+
+* It can be observed that the 'Mood_Productivity' column is of 'chr' (Character) data type which as two unique values: "Yes" and "No".
+* To conduct Multiple Regression, we would need to convert Mood Productivity into a num column with values "1" and "0" respectively
+
+
+**Converting the Character column into Numeric**
+
+```{r}
+
+social_media_reg$Mood_Productivity_num <- ifelse(social_media_reg$Mood_Productivity == "Yes", 1, 0)
+
+str(social_media_reg)
+```
+
+
+
+**Conducting Multiple Regression - Using the 'Mood_Productivity_num as the target variable**
+
+```{r}
+# Performing multiple regression on Social Media dataset
+fit <- lm(Mood_Productivity_num~Instagram_Hours+LinkedIn_Hours+Snapchat_Hours+Twitter_Hours+Whatsapp_Wechat_hours+Reddit_hours+Youtube_hours+OTT_hours, data=social_media_reg)
+
+#show the results
+summary(fit)
+
+```
+
+**Inference:**
+
+* The Median being close to 0 showcases that the model is able to predict perfectly.
+* Based on the residual data provided, it can be inferred that residuals may be following a Normal Distribution.
+* Furthermore, it can be observed that most columns have the P-values > 0.05 indicating that none of the columns are significant.
+* However, the F-Statistic value is greater than 1.
+
+**Removing 'Snapchat' and trying to check the model performance**
+
+```{r}
+# Performing multiple regression on Social Media dataset
+fit_1 <- lm(Mood_Productivity_num~Instagram_Hours+LinkedIn_Hours+Twitter_Hours+Whatsapp_Wechat_hours+Reddit_hours+Youtube_hours+OTT_hours, data=social_media_reg)
+
+#show the results
+summary(fit_1)
+
+```
+
+**Inference:**
+
+* We can observe that the model performs slightly better once 'Snpachat' is removed.
+* Here, we can observe that 'WhatsApp' has a P-value < 0.05.
+
+```{r}
+coefficients(fit_1)
+```
+
+#### **Residual Analysis**
+
+```{r}
+library(GGally)
+ggpairs(data=social_media_reg, title="Social Media Data")
+```
+
+**Inference:**
+
+* The graph clearly indicates that none of the columns have a linear relationship.
+
+#### **Confidence Level**
+
+```{r}
+confint(fit_1,level=0.95)
+```
+
+**Inference:**
+
+* Gives a range (low - high)
+
+#### **Predictions**
+
+```{r}
+fitted(fit_1)
+```
+
+**Inference:**
+
+* Here, the model is predicting mood productivity for every student.
+
+
+#### **Errors**
+
+```{r}
+residuals(fit_1)
+```
+
+**Inference:**
+
+* Ideally, the errors should always be close to 0.
+* All of the values in our case also seem to be close to 0 indicating that the model may be performing well.
+
+#### **Residual Chart**
+
+```{r}
+plot(fit_1)
+```
+
+**Inference:**
+
+* The plots above are heavily relied upon to verify whether the model's assumptions have been met. They help in identifying significant model issues.
+
+* **1. Residuals Vs Fitted Values Plot:** This plot aims to highlight whether the residuals have constant variance between them. The expected manner would be to be scattered around the horizontal line. However, in our case they seem to be concentrated in a particular manner. Since we can observe a pattern in the diagram, it indicates heteroscedasticity or non-linearity in the model.
+
+* **2. Q-Q Plot:** This plot compares the distribution of the residuals to the normal distribution. Since the points fall along the diagonal they indicate a normal distribution in the residuals.
+
+* **3. Scale-Location Plot:** This plot helps to assess whether the variance of the residuals is constant (homoscedasticity). The spread of the points changing systematically with the fitted values indicates heteroscedasticity.
+
+* **4. Residuals vs. Leverage Plot:** Points having high leverage and large residuals may be highly influential. This plot helps us determines whether these points should be considered.
+
+#### **Accuracy**
+
+```{r}
+summary(fit_1)$r.squared
+```
+
+**Inference:**
+
+* R-squared range from 0 to 1.
+* A value of 0.45 indicates that the model explains partial variability in the target variable, suggesting that the independent variables have limited predictive power.
+
+#### **As observed the model may not have been performing well. Therefore, let's conduct PCA and carry out Multiple Regression on the PCs to check if that provides any improvement**
+
+```{r}
+social_media_num <- social_media_reg[, c("Instagram_Hours",	"LinkedIn_Hours",	"Snapchat_Hours", "Twitter_Hours",	"Whatsapp_Wechat_hours", "Reddit_hours",	"Youtube_hours",	"OTT_hours", "Mood_Productivity_num")]
+
+social_media_num_pca <- social_media_num[, c("Instagram_Hours",	"LinkedIn_Hours",	"Snapchat_Hours", "Twitter_Hours",	"Whatsapp_Wechat_hours", "Reddit_hours",	"Youtube_hours",	"OTT_hours")]
+
+social_media_pca <- prcomp(social_media_num_pca, scale. = TRUE)
+
+social_media_pca
+
+```
+
+```{r}
+summary(social_media_pca)
+```
+
+
+**Scree Plot**
+
+**To further understand the ideal number of PCs, we can carry out the Scree Plot**
+
+```{r}
+(eigen_social_media <- social_media_pca$sdev^2)
+names(eigen_social_media) <- paste("PC",1:8,sep="")
+
+plot(eigen_social_media, xlab = "Component number", ylab = "Component variance", type = "l", main = "Scree diagram")
+```
+
+**Inference**:
+
+* Based on the observed Scree plots, **3 can be chosen as the ideal number of Principal Components**
+
+
+#### **Multiple Regression using 3 PCs**
+
+```{r}
+
+PC1 <- social_media_pca$x[, 1]
+PC2 <- social_media_pca$x[, 2]
+PC3 <- social_media_pca$x[, 3]
+
+# Create a new dataset with selected principal components
+pc_data <- data.frame(PC1, PC2, PC3)
+
+#Combining Target Variable to pc_data
+pc_data$mood_prod_num <- social_media_reg$Mood_Productivity_num
+
+```
+
+```{r}
+pc_data                                  
+```
+
+
+```{r}
+fit_pc <- lm(mood_prod_num~PC1+PC2+PC3, data=pc_data)
+
+summary(fit_pc)
+
+```
+
+**Inference:**
+
+* Here, all the PCs can be seen to have a high P-value (>0.05).
+* The next best method to deal with this could be to carry out **Factor Analysis** to check for a better model.
+
+
+#### **Factor Analysis and Multiple Regression on FCs**
+
+**Scree Plot -- To check for the ideal number of factors**
+
+```{r}
+fa.parallel(social_media_num_pca) 
+```
+
+**Inference**:
+
+* Following the FA Actual Data, we can interpret as **2 to be the ideal number of factors**.
+
+
+**Factor Model**
+
+```{r}
+fit.pc <- principal(social_media_num_pca, nfactors=2, rotate="varimax")
+
+round(fit.pc$values, 3)
+fit.pc$loadings
+
+```
+
+#### **Multiple Regression using 2 RCs**
+
+```{r}
+loadings <- fit.pc$scores[, c("RC1", "RC2")]
+loadings_df <- as.data.frame(loadings)
+loadings_df <- round(loadings_df, 3)
+```
+
+```{r}
+loadings_df$mood_prod_num <- social_media_reg$Mood_Productivity_num
+```
+
+```{r}
+fit_rc <- lm(mood_prod_num~RC1+RC2, data=loadings_df)
+
+summary(fit_rc)
+```
+
+**Inference:**
+
+* Here, all the RCs can be seen to have a high P-value (>0.05) indicating that this may not be the right course of action.
+
+
+#### **Summary**
+
+* The analysis has helped us identify how multiple regression worked a little better once we got rid of the 'Snpachat' column. It gave us a an r-square value of 0.457.
+* Furthermore, once resorted to Principal Component Analysis and Factor Analysis with expectations to achieve better results - an inference of poor performance can be drawn out.
+
+

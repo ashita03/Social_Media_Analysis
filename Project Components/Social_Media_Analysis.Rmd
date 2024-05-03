@@ -1,0 +1,292 @@
+---
+title: "Social Media Data Analysis"
+author: "Ashita Shetty"
+output: html_document
+---
+
+```{r}
+library(readr)
+library(corpcor)
+library(Hotelling)
+library(lattice)
+library(ggplot2)
+library(ggridges)
+library(ggvis)
+library(ggthemes)
+library(cowplot)
+library(gapminder)
+library(gganimate)
+library(dplyr)
+library(tidyverse)
+library(grid)
+library(gridExtra)
+library(RColorBrewer)
+
+library(cluster)
+library(readr)
+library(factoextra)
+library(FactoMineR)
+library(magrittr)
+library(NbClust)
+library(psych)
+options(scipen=999)
+```
+
+```{r}
+social_media <- read.csv("C:\\Users\\Dell\\Desktop\\RBS\\Semester II\\Multivariate Analysis\\Assignment\\Social_Media\\MVA_Social_Media_Cleaned.csv", row.names = 1)
+
+social_media_num <- social_media[, c("Instagram_Hours",	"LinkedIn_Hours",	"Snapchat_Hours", "Twitter_Hours",	"Whatsapp_Wechat_hours", "Reddit_hours",	"Youtube_hours",	"OTT_hours")]
+```
+
+
+#### **Questions aimed to be answered with the analysis**
+
+###### *Perform PCA (20 points), Cluster Analysis (20 Points), and Factor Analysis (20 points) on your data*
+
+###### *Summarize what each of these models is telling you about yourself and the class (30 points)*
+
+###### *Provide a takeaway from the analysis (10 points)*
+
+
+### **Performing different methods**
+
+#### **Principal Component Analysis**
+
+```{r}
+social_media_pca <- prcomp(social_media_num, scale. = TRUE)
+social_media_pca
+```
+
+```{r}
+summary(social_media_pca)
+```
+
+**Inference**:
+
+* This is the summary of the Principal Components. We can use the Scree Plot in order to get the ideal number of Principal Components.
+
+**Scree Plot**
+
+**To further understand the ideal number of PCs, we can carry out the Scree Plot**
+
+```{r}
+(eigen_social_media <- social_media_pca$sdev^2)
+names(eigen_social_media) <- paste("PC",1:8,sep="")
+
+plot(eigen_social_media, xlab = "Component number", ylab = "Component variance", type = "l", main = "Scree diagram")
+```
+
+```{r}
+plot(log(eigen_social_media), xlab = "Component number",ylab = "log(Component variance)", type="l",main = "Log(eigenvalue) diagram")
+```
+
+**Inference**:
+
+* Based on the observed Scree plots, **3 can be chosen as the ideal number of Principal Components**.
+
+**Biplot**
+
+```{r}
+fviz_pca_var(social_media_pca,col.var = "cos2",
+             gradient.cols = c("#FFCC00", "#CC9933", "#660033", "#330033"),
+             repel = TRUE)
+```
+
+**Inference:**
+
+* The distance between points in a biplot show the generalised distance between them. 
+* The closer they are to each other, the stronger correlation they have.
+
+
+**Individual PCA** 
+
+```{r}
+res.pca <- PCA(social_media_num, graph = FALSE)
+
+fviz_pca_ind(res.pca)
+```
+
+**Inference**:
+
+* As we can notice, most of the students are very similar with a few outliers such as *masinl* and *15801*
+
+
+**PCA - Biplot**
+
+```{r}
+fviz_pca_biplot(res.pca, repel = TRUE,
+                col.var = "#FC4E07", # Variables color
+                )
+```
+
+**Inference:**
+
+* The PCA Bi-plot can help us understand students spend most of their hours on WhatsApp/Wechat, Twitter, OTT platforms, Instagram and Snapchat followed by LinkedIn and Youtube.
+* The least number of hours has been spent on Reddit.
+* Student 15801 in general spends more time on social media, especially Snapchat.
+* Student masinl spends most of his/her time on Twitter and OTT.
+* The club of students in the left have been grouped together due to their similar activities of social media usage.
+
+
+#### **Cluster Analysis**
+
+```{r}
+matstd_socialmedia <- scale(social_media_num)
+```
+
+**Elbow Plot - To identify the ideal number of clusters**
+
+```{r}
+fviz_nbclust(matstd_socialmedia, kmeans, method = "wss")
+```
+
+**Inference:**
+
+* It can be observed that **4 may be the ideal number of clusters** 
+
+
+**Dendogram - To visualize the different possible clusters**
+
+```{r}
+dist.sm <- dist(matstd_socialmedia, method = "euclidean")
+clussm.nn <- hclust(dist.sm, method = "single")
+```
+
+```{r}
+plot(as.dendrogram(clussm.nn),xlab="Students",ylab="Distance between diffferent students",ylim=c(0,10),
+     main="Dendrogram Plot")
+```
+
+**Membership of all clusters**
+
+```{r}
+set.seed(123)
+kmeans4.sm <- kmeans(matstd_socialmedia, 4, nstart = 25)
+
+kmeans4.sm
+```
+
+```{r}
+clus1 <- matrix(names(kmeans4.sm$cluster[kmeans4.sm$cluster == 1]), 
+                ncol=1, nrow=length(kmeans4.sm$cluster[kmeans4.sm$cluster == 1]))
+colnames(clus1) <- "Cluster 1"
+
+clus2 <- matrix(names(kmeans4.sm$cluster[kmeans4.sm$cluster == 2]), 
+                ncol=1, nrow=length(kmeans4.sm$cluster[kmeans4.sm$cluster == 2]))
+colnames(clus2) <- "Cluster 2"
+
+clus3 <- matrix(names(kmeans4.sm$cluster[kmeans4.sm$cluster == 3]), 
+                ncol=1, nrow=length(kmeans4.sm$cluster[kmeans4.sm$cluster == 3]))
+colnames(clus3) <- "Cluster 3"
+
+clus4 <- matrix(names(kmeans4.sm$cluster[kmeans4.sm$cluster == 4]), 
+                ncol=1, nrow=length(kmeans4.sm$cluster[kmeans4.sm$cluster == 4]))
+colnames(clus4) <- "Cluster 4"
+
+list(clus1,clus2, clus3, clus4)
+```
+**Inference:**
+
+* The students that fall into the 4 different clusters can be viewed.
+
+```{r}
+km.res <- kmeans(matstd_socialmedia, 4, nstart = 25)
+# Visualize
+fviz_cluster(km.res, data = matstd_socialmedia,
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal(),
+             repel = TRUE)
+
+```
+
+**Inference:**
+
+* As you can observe, *masinl* and *15801* are not grouped in any of the clusters due to their social media usage pattern being unlike the others.
+* Whereas the other 2 student groups show similarity based on their app usage consumption (hours + kind of app).
+
+
+#### **Factor Analysis**
+
+```{r}
+fa.parallel(social_media_num) 
+```
+
+**Inference**:
+
+* Following the FA Actual Data, we can interpret as **2 to be the ideal number of factors**.
+
+
+**Factor Model**
+
+```{r}
+fit.pc <- principal(social_media_num, nfactors=2, rotate="varimax")
+
+round(fit.pc$values, 3)
+fit.pc$loadings
+
+```
+
+**Inference:**
+
+* The loadings give the correlation, and leave out the values that may be way below a threshold making it unimportant.
+* An inference of how heavily correlated *Snapchat_Hours*, *Instagram_Hours* are to *RC1* can be drawn.
+* Similarly, *Twitter_Hours*, and *OTT_Hours* are to *RC2*.
+
+
+```{r}
+fit.pc$communality
+```
+
+**Inference:**
+
+* The column with the lowest communality scores can be referenced to be the least contributing.
+* In this case, it can be observed that *Reddit_Hours* has the least communality score making it the least contributing column.
+
+```{r}
+fit.pc$scores
+```
+
+**Inference:**
+
+* The scores here are representing the transformed data corresponding to each row (student).
+
+
+**Visualizing the Columns that go into each Factor**
+
+```{r}
+fa.diagram(fit.pc)
+```
+
+**Inference:**
+
+* The diagram is clearly representing how *Snapchat_Hours*, *Instagram_Hours* are heavily contributing to *RC1* whereas *LinkedIn_Hours*, *Whatsapp_Wechat_hours*, *Youtube_hours* contribute equally. This is indicative of how these applications are viewed more or less in similar patterns, making them more popular among students.
+* *Twitter_Hours*, *OTT_Hours* are bigger contributors to *RC2*, whereas *Reddit_hours* contribute least. This showcases that Reddit is the least popular application, and Twitter, OTT are popular among a few students.
+
+
+### **Summarization of Model Results with respect to myself and the class**
+
+* Based on the **Clusters** and **PCA**, we can understand that students in Cluster 3 use Social Media moderately. **Cluster 4 students are heavy users of Social Media Apps**. 
+* There are 2 outliers: *masinl* who is a heavy Twitter User, and similarly, *15801* who is a heavy Snapchat User. It can also be highlighted that *masinl* is not an ardent application user other than of Twitter. Whereas *15801* is in general a heavy social media user, more so of Snapchat. 
+* **WhatsApp**, **Instagram**, **Snapchat**, **OTT**, and **Twitter** are the applications that affect the data most, making them the most popular applications among students. Whereas, **Reddit** is the least popular application.
+
+**In order to understand where I stand w.r.t to the other students, Z-scores can be calculated**
+
+```{r}
+means <- colMeans(social_media_num)
+std_devs <- apply(social_media_num, 2, sd)
+
+z_scores <- scale(social_media_num, center = means, scale = std_devs)
+
+z_scores[18,]
+```
+
+* The Z-scores can help me identify how my **Youtube**, **LinkedIn**, and **Twitter** usage are **way below** my fellow classmates.
+* Whereas **Instagram**, **Snapchat** are **slightly higher** than the average among my classmates.
+
+### **Provide takeaway from the analysis**
+
+* The Analysis helps to understand where I stand as an application user compared to the rest of my batchmates.
+* **YouTube, WhatsApp/WeChat, Instagram, LinkedIn, Snapchat** are likely to be used in similar patters by the class. It can also be observed these applications are linked to **modes of communication channels, and or entertainment**. 
+* **Twitter, OTT, and Reddit** have a separate usage pattern. These applications are linked towards **information consumption, news sharing or niche content**.
+* Majority of the class can be majorly divided into two groups of social media users: *Heavy Consumers*, and *Moderate to Low* (except the outlier usages)
