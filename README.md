@@ -9,8 +9,8 @@ The approach employed for this analysis involves the following steps:
 * `Principal Component Analysis` - Used to explore the potential reduction of dimensions by determining the optimal number of Principal Components (PCs).
 * `Clustering` - Utilized to identify patterns within the data by grouping similar data points.
 * `Factor Analysis` - Employed to identify underlying factors that can group various columns.
-* `Multiple Regression and Logisitic Regression` - Resorted to Regression to predict students' mood productivity based on social media usage.
-* `Linear Discriminant Analysis` - Applied LDA to create a model to predict whether students' wake up tired or not and the correlation of the same to their social media usage
+* `Multiple Regression and Logisitic Regression` - Resorted to Regression to predict whether students' face trouble sleeping based on social media usage.
+* `Linear Discriminant Analysis` - Applied LDA to create a model to predict whether students' face trouble sleeping or not and the correlation of the same to their social media usage
 
 ## Repository 
 The cleaned data, Rmd (R), and HTML files are available to play with!
