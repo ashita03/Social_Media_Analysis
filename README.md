@@ -1,7 +1,7 @@
 # Social Media Analysis: Exploring Students' Weekly Usage
 
 ## About the Data
-The dataset contains data obtained from students regarding their weekly usage of social media. Subsequently, the data has been consolidated into a single row through averaging.
+The dataset contains data obtained from students regarding their weekly usage of social media. Subsequently, the data has been consolidated into a single row through averaging. It includes multiple other target features such as mood productivity, whether or not a student had trouble falling asleep, tired waking up in the morning, and the energy level throughout the week.
 
 ## Methodology
 The approach employed for this analysis involves the following steps:
