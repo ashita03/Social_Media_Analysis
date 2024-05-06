@@ -3,6 +3,18 @@
 ## About the Data
 The dataset contains data obtained from students regarding their weekly usage of social media. Subsequently, the data has been consolidated into a single row through averaging. It includes multiple other target features such as mood productivity, whether or not a student had trouble falling asleep, tired waking up in the morning, and the energy level throughout the week.
 
+## Data Collection
+Every week students were expected to log the total hours spent on different applications, and fill out details related to whether they were productive, or had trouble with their sleeping pattern, their mood throughout the week, and more. 
+
+| Applications Tracked  | 
+| ------------- | 
+| WhatsApp/WeChat  | 
+| Instagram  |
+| Snapchat  | 
+| Twitter  |
+| LinkedIn  | 
+| Reddit  |
+
 ## Methodology
 The approach employed for this analysis involves the following steps:
 
