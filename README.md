@@ -14,6 +14,8 @@ Every week students were expected to log the total hours spent on different appl
 | Twitter  |
 | LinkedIn  | 
 | Reddit  |
+| YouTube  | 
+| OTT Platforms  |
 
 ## Methodology
 The approach employed for this analysis involves the following steps:
